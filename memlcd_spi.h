@@ -1,0 +1,23 @@
+/*
+ *
+ *
+ *
+ *
+ */
+
+#ifndef _INCLUDE_MEMLCD_SPI_H_
+#define _INCLUDE_MEMLCD_SPI_H_
+
+#define LS027B7DH01_WIDTH	(400)
+#define LS027B7DH01_HEIGHT	(241)
+#define LS027B7DH01_LINE_LEN	(LS027B7DH01_WIDTH / 8)
+#define LS027B7DH01_SCREEN_SIZE	(LS027B7DH01_LINE_LEN * LS027B7DH01_HEIGHT)
+//#define LS027B7DH01_
+
+typedef struct {
+	struct spi_device	*spi;
+	struct fb_info		*info;
+	char			*video_memory;
+} memlcd_priv;
+
+#endif
