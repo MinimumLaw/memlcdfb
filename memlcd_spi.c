@@ -6,6 +6,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/workqueue.h>
 #include <linux/mm.h>
 #include <linux/fb.h>
 #include <linux/spi/spi.h>
@@ -44,14 +45,70 @@ static int ls027b7dh01_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	virt_to_page(info->screen_base));
 }
 
+/* Mark dispaly region invalid and need for update */
+static void ls027b7dh01_invalidate(struct fb_info *info,
+				    int x, int y, int w, int h)
+{
+	memlcd_priv		*priv = info->par;
+	struct spi_device	*spi = priv->spi;
+	dev_info(&spi->dev,"Invalidate region from (%d,%d) to (%d,%d)",
+		x, y, x+w, y+h);
+	//schedule_delayed_work(&info->deferred_work, info->fbdefio->delay);
+}
+
+static void ls027b7dh01_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
+{
+	sys_fillrect(p, rect);
+	ls027b7dh01_invalidate(p, rect->dx, rect->dy, rect->width, rect->height);
+}
+
+static void ls027b7dh01_imageblit(struct fb_info *p, const struct fb_image *image)
+{
+	sys_imageblit(p, image);
+	ls027b7dh01_invalidate(p, image->dx, image->dy, image->width, image->height);
+}
+
+static void ls027b7dh01_copyarea(struct fb_info *p, const struct fb_copyarea *area)
+{
+	sys_copyarea(p, area);
+	ls027b7dh01_invalidate(p, area->dx, area->dy, area->width, area->height);
+}
+
+static ssize_t ls027b7dh01_write(struct fb_info *p, const char __user *buf, 
+				    size_t count, loff_t *ppos)
+{
+	int retval;
+	int begin = *ppos;
+	int end = *ppos + count;
+
+	retval = fb_sys_write(p, buf, count, ppos);
+	ls027b7dh01_invalidate(p, 
+		begin % LS027B7DH01_LINE_LEN, begin / LS027B7DH01_LINE_LEN, 
+		end % LS027B7DH01_LINE_LEN, end / LS027B7DH01_LINE_LEN);
+	return retval;
+}
+
 static struct fb_ops ls027b7dh01_ops = {
         .owner = THIS_MODULE,
-	.fb_read = fb_sys_read,
-        .fb_write = fb_sys_write,
-	.fb_fillrect = sys_fillrect,
-        .fb_copyarea = sys_copyarea,
-	.fb_imageblit = sys_imageblit,
+	.fb_read = fb_sys_read, /* use system read function */
+        .fb_write = ls027b7dh01_write,
+	.fb_fillrect = ls027b7dh01_fillrect,
+        .fb_copyarea = ls027b7dh01_copyarea,
+	.fb_imageblit = ls027b7dh01_imageblit,
 	.fb_mmap = ls027b7dh01_mmap,
+};
+
+static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
+{
+	memlcd_priv		*priv = info->par;
+	struct spi_device	*spi = priv->spi;
+	/* TODO: Write this code */
+	dev_info(&spi->dev,"%s called", __FUNCTION__);
+}
+
+static struct fb_deferred_io ls027b7dh01_defio = {
+	.delay	= HZ/6,
+	.deferred_io = &ls027b7dh01_update,
 };
 
 static int memlcd_spi_probe(struct spi_device *spi)
@@ -94,13 +151,14 @@ static int memlcd_spi_probe(struct spi_device *spi)
 	}
 
 	/* configure framebuffer device */
+	priv->info->par = priv;
 	priv->info->screen_base = (char __iomem *)priv->video_memory;
 	priv->info->screen_size = LS027B7DH01_SCREEN_SIZE;
 	priv->info->fbops = &ls027b7dh01_ops;
 	priv->info->fix = ls027b7dh01_fix;
 	priv->info->var = ls027b7dh01_var;
+	priv->info->fbdefio = &ls027b7dh01_defio;
 	priv->info->pseudo_palette = NULL;
-	priv->info->par = NULL;
 	priv->info->flags = FBINFO_FLAG_DEFAULT;
 
 	/* register framebuffer */
