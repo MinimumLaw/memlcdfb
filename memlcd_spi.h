@@ -24,7 +24,7 @@ typedef struct {
 typedef struct {
 	struct spi_device	*spi;
 	struct fb_info		*info;
-	char			*video_memory;
+	unsigned char		*video_memory;
 } memlcd_priv;
 
 #endif
