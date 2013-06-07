@@ -53,7 +53,7 @@ static void ls027b7dh01_invalidate(struct fb_info *info,
 	struct spi_device	*spi = priv->spi;
 	dev_info(&spi->dev,"Invalidate region from (%d,%d) to (%d,%d)",
 		x, y, x+w, y+h);
-	//schedule_delayed_work(&info->deferred_work, info->fbdefio->delay);
+	schedule_delayed_work(&info->deferred_work, info->fbdefio->delay);
 }
 
 static void ls027b7dh01_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
@@ -102,8 +102,28 @@ static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
 {
 	memlcd_priv		*priv = info->par;
 	struct spi_device	*spi = priv->spi;
-	/* TODO: Write this code */
-	dev_info(&spi->dev,"%s called", __FUNCTION__);
+	struct spi_message	m;
+	struct spi_transfer	t;
+	memlcd_line_update	line;
+	int			i;
+
+	for(i=0; i < LS027B7DH01_HEIGHT; i++) { /* for all lines */
+		/* prepare data to transfer */
+		line.cmd = 0x80; // FixMe: need mnemonic
+		line.addr = i;
+		memcpy(line.data, priv->video_memory + i * LS027B7DH01_LINE_LEN, LS027B7DH01_LINE_LEN);
+		line.dummy[0] = 0;
+		line.dummy[1] = 0;
+		/* prepare transfer message */
+		spi_message_init(&m);
+		t.tx_buf = &line;
+		t.len = sizeof(line);
+		spi_message_add_tail(&t,&m);
+		dev_info(&spi->dev,"Line %d prepared",i);
+		/* send data to device */ 
+		spi_sync(spi, &m);
+		dev_info(&spi->dev,"Line %d sent",i);
+	};
 }
 
 static struct fb_deferred_io ls027b7dh01_defio = {
@@ -125,14 +145,14 @@ static int memlcd_spi_probe(struct spi_device *spi)
 	dev_set_drvdata(&spi->dev,priv);
 	priv->spi = spi;
 
-	/* configure spi */
+	/* configure spi */ 
 	spi->bits_per_word = 8;
 	spi->max_speed_hz = 2000000;
 	ret = spi_setup(spi);
 	if (ret < 0) {
 		dev_err(&spi->dev, "Configure spi host phase failed!");
 		goto free_priv;
-	}
+	} 
 
 	/* allocate framebuffer */
 	priv->info = framebuffer_alloc(0, &spi->dev);
@@ -161,6 +181,9 @@ static int memlcd_spi_probe(struct spi_device *spi)
 	priv->info->pseudo_palette = NULL;
 	priv->info->flags = FBINFO_FLAG_DEFAULT;
 
+	/* init deferred io structure */
+	fb_deferred_io_init(priv->info);
+
 	/* register framebuffer */
 	ret = register_framebuffer(priv->info);
 	if(ret < 0) {
@@ -179,6 +202,9 @@ free_priv:
 static int memlcd_spi_remove(struct spi_device *spi)
 {
 	memlcd_priv	*priv = dev_get_drvdata(&spi->dev);
+
+	/* cleanup defio */
+	fb_deferred_io_cleanup(priv->info);
 
 	/* remove framebuffer */
 	if(priv->info) {

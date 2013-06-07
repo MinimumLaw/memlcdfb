@@ -17,11 +17,13 @@ MAKE_ARGS=ARCH=${ARCH} \
 	INSTALL_MOD_PATH=${ROOT_FS_PATH} \
 	-C ${KDIR} M=${PWD}
 
-all:
+all: modules_install
+
+modules:
 	make ${MAKE_ARGS} modules
 
 clean:
 	make ${MAKE_ARGS} clean
 
-modules_install:
+modules_install: modules
 	sudo make ${MAKE_ARGS} modules_install

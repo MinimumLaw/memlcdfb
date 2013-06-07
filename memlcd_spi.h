@@ -15,6 +15,13 @@
 //#define LS027B7DH01_
 
 typedef struct {
+	unsigned char	cmd;
+	unsigned char	addr;
+	unsigned char	data[LS027B7DH01_LINE_LEN];
+	unsigned char   dummy[2];
+} memlcd_line_update;
+
+typedef struct {
 	struct spi_device	*spi;
 	struct fb_info		*info;
 	char			*video_memory;
