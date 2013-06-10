@@ -15,7 +15,7 @@
 static struct fb_fix_screeninfo ls027b7dh01_fix = {
 	.id = "ls027b7h01",
 	.type = FB_TYPE_PACKED_PIXELS,
-	.visual = FB_VISUAL_MONO01,
+	.visual = FB_VISUAL_MONO10,
 	.xpanstep = 0,
 	.ypanstep = 0,
 	.ywrapstep = 0,
@@ -123,21 +123,18 @@ static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
 {
 	memlcd_priv		*priv = info->par;
 	struct spi_device	*spi = priv->spi;
-	memlcd_line_update	line;
+	memlcd_line_update	*line = (memlcd_line_update*)priv->spi_buf;
 	int			i,j;
 
 	for(i=0; i < LS027B7DH01_HEIGHT; i++) { /* for all lines */
 		/* prepare data to transfer */
-		line.cmd = 0x80; // FixMe: need mnemonic
-		line.addr = msb2lsb[i];
+		line[i].cmd = 0x80; // FixMe: need mnemonic
+		line[i].addr = msb2lsb[i];
 		for(j=0;j<LS027B7DH01_SPI_LINE_LEN;j++)
-			line.data[j] = msb2lsb[priv->video_memory[i * LS027B7DH01_LINE_LEN + j]];
-		//memcpy(line.data, priv->video_memory + i * LS027B7DH01_LINE_LEN, LS027B7DH01_SPI_LINE_LEN);
-		line.dummy[0] = 0;
-		line.dummy[1] = 0;
-		/* send data to device */
-		spi_write(spi, &line, sizeof(line));
-	};
+			line[i].data[j] = msb2lsb[priv->video_memory[i * LS027B7DH01_LINE_LEN + j]];
+	}
+	dev_dbg(&spi->dev,"Write %d data bytes to spi", LS027B7DH01_HEIGHT * sizeof(memlcd_line_update) + 2);
+	spi_write(spi,&(((char *)priv->spi_buf)[0]),LS027B7DH01_HEIGHT * sizeof(memlcd_line_update) + 2);
 }
 
 static struct fb_deferred_io ls027b7dh01_defio = {
@@ -176,12 +173,21 @@ static int memlcd_spi_probe(struct spi_device *spi)
 		goto free_priv;
 	}
 
+	/* allocate spi data transfer buffer */
+	priv->spi_buf = kzalloc(
+	    LS027B7DH01_HEIGHT * sizeof(memlcd_line_update) + 2, GFP_KERNEL);
+	if(priv->spi_buf == NULL) {
+		dev_err(&spi->dev,"Allocate data for spi transfers failed!");
+		ret = -ENOMEM;
+		goto free_fb;
+	}
+
 	/* allocate video memory */
 	priv->video_memory = kzalloc(LS027B7DH01_SCREEN_SIZE, GFP_KERNEL);
 	if(priv->video_memory == NULL) {
 		dev_err(&spi->dev, "Allocate video memory failed!");
 		ret = -ENOMEM;
-		goto free_fb;
+		goto free_spi_data;
 	}
 
 	/* configure framebuffer device */
@@ -208,6 +214,8 @@ static int memlcd_spi_probe(struct spi_device *spi)
 	}
 	dev_info(&spi->dev,"Framebuffer device registered successfully!");
 	return 0;
+free_spi_data:
+	kfree(priv->spi_buf);
 free_fb:
 	kfree(priv->info);
 free_priv:
