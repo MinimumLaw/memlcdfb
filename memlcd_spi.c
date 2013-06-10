@@ -233,6 +233,12 @@ static int memlcd_spi_remove(struct spi_device *spi)
 	/* cleanup defio */
 	fb_deferred_io_cleanup(priv->info);
 
+	/* remove spi_buf memory */
+	if(priv->spi_buf) {
+		dev_info(&spi->dev,"Free spi_buf memory");
+		kfree(priv->spi_buf);
+	}
+
 	/* remove framebuffer */
 	if(priv->info) {
 		dev_info(&spi->dev,"Free framebuffer data");
