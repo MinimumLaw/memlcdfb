@@ -126,8 +126,11 @@ static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
 	memlcd_line_update	*line = (memlcd_line_update*)priv->spi_buf;
 	int			i,j;
 
+	/* Prepare data to transfer
+	 * FixMe: Marvell PXA320 not supported LSB-first on SPI interface
+	 *        I use msb2lsb table for convert ALL bytes to LSB format
+	 *        This solution may be wrong on other SPI hosts            */
 	for(i=0; i < LS027B7DH01_HEIGHT; i++) { /* for all lines */
-		/* prepare data to transfer */
 		line[i].cmd = 0x80; // FixMe: need mnemonic
 		line[i].addr = msb2lsb[i];
 		for(j=0;j<LS027B7DH01_SPI_LINE_LEN;j++)
@@ -138,7 +141,7 @@ static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
 }
 
 static struct fb_deferred_io ls027b7dh01_defio = {
-	.delay	= HZ/6,
+	.delay	= HZ/10,
 	.deferred_io = &ls027b7dh01_update,
 };
 
