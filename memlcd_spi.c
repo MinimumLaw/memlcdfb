@@ -15,7 +15,7 @@
 static struct fb_fix_screeninfo ls027b7dh01_fix = {
 	.id = "ls027b7h01",
 	.type = FB_TYPE_PACKED_PIXELS,
-	.visual = FB_VISUAL_MONO10,
+	.visual = FB_VISUAL_MONO01,
 	.xpanstep = 0,
 	.ypanstep = 0,
 	.ywrapstep = 0,
@@ -130,9 +130,9 @@ static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
 		/* prepare data to transfer */
 		line.cmd = 0x80; // FixMe: need mnemonic
 		line.addr = msb2lsb[i];
-		for(j=0;j<LS027B7DH01_LINE_LEN;j++)
+		for(j=0;j<LS027B7DH01_SPI_LINE_LEN;j++)
 			line.data[j] = msb2lsb[priv->video_memory[i * LS027B7DH01_LINE_LEN + j]];
-		//memcpy(line.data, priv->video_memory + i * LS027B7DH01_LINE_LEN, LS027B7DH01_LINE_LEN);
+		//memcpy(line.data, priv->video_memory + i * LS027B7DH01_LINE_LEN, LS027B7DH01_SPI_LINE_LEN);
 		line.dummy[0] = 0;
 		line.dummy[1] = 0;
 		/* send data to device */
