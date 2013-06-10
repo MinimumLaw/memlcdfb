@@ -29,13 +29,15 @@ static struct fb_var_screeninfo ls027b7dh01_var = {
 	.xres_virtual	= LS027B7DH01_WIDTH,
 	.yres_virtual	= LS027B7DH01_HEIGHT,
 	.bits_per_pixel = 1,
-/*
+	.red = {0,1,0},
+	.green = {0,1,0},
+	.blue = {0,1,0},
+	.transp={0,0,0},
 	.left_margin = 0,
 	.right_margin = 0,
 	.upper_margin = 0,
 	.lower_margin = 0,
 	.vmode = FB_VMODE_NONINTERLACED,
-*/
 };
 
 static int ls027b7dh01_mmap(struct fb_info *info, struct vm_area_struct *vma)
@@ -188,15 +190,9 @@ static int memlcd_spi_probe(struct spi_device *spi)
 	priv->info->screen_size = LS027B7DH01_SCREEN_SIZE;
 	priv->info->fbops = &ls027b7dh01_ops;
 	priv->info->fix = ls027b7dh01_fix;
+	priv->info->fix.smem_start = (unsigned long)priv->video_memory;
+	priv->info->fix.smem_len = LS027B7DH01_SCREEN_SIZE;
 	priv->info->var = ls027b7dh01_var;
-        priv->info->var.red.length = 1;
-        priv->info->var.red.offset = 0;
-        priv->info->var.green.length = 1;
-        priv->info->var.green.offset = 0;
-        priv->info->var.blue.length = 1;
-        priv->info->var.blue.offset = 0;
-        priv->info->var.transp.length = 0;
-        priv->info->var.transp.offset = 0;
 	priv->info->fbdefio = &ls027b7dh01_defio;
 	priv->info->pseudo_palette = NULL;
 	priv->info->flags = FBINFO_FLAG_DEFAULT;
