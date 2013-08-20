@@ -6,10 +6,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
-//#include <linux/slab.h>
-//#include <linux/kref.h>
-//#include <linux/uaccess.h>
-//#include <linux/mutex.h>
 /* usb specific */
 #include <linux/usb.h>
 #include <linux/errno.h>
@@ -140,7 +136,7 @@ static void usb_write_cb(struct urb *urb)
 		dev_err(&interface->dev,"Nonzero bulk write status\n");
 
 	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
-									urb->transfer_buffer, urb->transfer_dma);
+			urb->transfer_buffer, urb->transfer_dma);
 }
 
 static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
@@ -158,7 +154,7 @@ static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
 			return;
 		}
 		buf = usb_alloc_coherent(dev->udev, LS027B7DH01_LINE_LEN + 1, 
-															GFP_KERNEL, &urb->transfer_dma);
+					GFP_KERNEL, &urb->transfer_dma);
 		if(!buf) {
 			dev_err(&interface->dev,"Failed to allocate URB data buffer!");
 			goto buf_error;
@@ -170,8 +166,8 @@ static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
 		// ToDo: check for disconnect
 
 		usb_fill_bulk_urb(urb, dev->udev, usb_sndbulkpipe(dev->udev, dev->ep), 
-											buf, LS027B7DH01_LINE_LEN + 1,
-											usb_write_cb, dev);
+				buf, LS027B7DH01_LINE_LEN + 1,
+				usb_write_cb, dev);
 		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 		usb_anchor_urb(urb, &dev->submitted);
 

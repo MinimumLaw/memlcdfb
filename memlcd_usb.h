@@ -9,7 +9,6 @@
 #define LS027B7DH01_HEIGHT		(241)
 /* FixMe: We need framebuffer line len multiples 4. Need macro for this. */
 #define LS027B7DH01_LINE_LEN		(52)
-#define LS027B7DH01_SPI_LINE_LEN	(LS027B7DH01_WIDTH / 8)
 #define LS027B7DH01_SCREEN_SIZE \
     (LS027B7DH01_LINE_LEN * LS027B7DH01_HEIGHT)
 
