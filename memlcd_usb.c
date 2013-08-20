@@ -132,8 +132,21 @@ static void usb_write_cb(struct urb *urb)
 	struct memlcd_usb_dev	*dev = urb->context;
 	struct usb_interface	*interface = dev->iface;
 
-	if(urb->status)
-		dev_err(&interface->dev,"Nonzero bulk write status\n");
+	if(urb->status) {
+		switch(urb->status) {
+		case -ENOENT:
+			dev_err(&interface->dev,"Bulk write status report -ENOENT\n");
+			break;
+		case -ECONNRESET:
+			dev_err(&interface->dev,"Bulk write status report -ECONNRESET\n");
+			break;
+		case -ESHUTDOWN:
+			dev_err(&interface->dev,"Bulk write status report -ESHUTDOWN\n");
+			break;
+		default:
+		    dev_err(&interface->dev,"Nonzero bulk write status (%d)\n", urb->status);
+		}
+	};
 
 	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
 			urb->transfer_buffer, urb->transfer_dma);
@@ -163,7 +176,11 @@ static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
 		buf[0] = i; // first is line number, next line data
 		memcpy(buf+1, dev->video_memory + (i * LS027B7DH01_LINE_LEN), LS027B7DH01_LINE_LEN);
 
-		// ToDo: check for disconnect
+		// Check for disconnect
+		if(!dev->iface) {
+			dev_err(&interface->dev,"Transfer aborted - device disconnected!\n");
+			goto buf_error;
+		}
 
 		usb_fill_bulk_urb(urb, dev->udev, usb_sndbulkpipe(dev->udev, dev->ep), 
 				buf, LS027B7DH01_LINE_LEN + 1,
@@ -174,7 +191,55 @@ static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
 		retval = usb_submit_urb(urb, GFP_KERNEL);
 
 		if(retval) {
-			dev_err(&interface->dev, "Failed to submit URB!\n");
+			switch(retval) {
+			case -ENOMEM:
+				dev_err(&interface->dev,"Bulk write status report -ENOMEM\n");
+				break;
+			case -EBUSY:
+				dev_err(&interface->dev,"Bulk write status report -EBUSY\n");
+				break;
+			case -ENODEV:
+				dev_err(&interface->dev,"Bulk write status report -ENODEV\n");
+				break;
+			case -ENOENT:
+				dev_err(&interface->dev,"Bulk write status report -ENOENT\n");
+				break;
+			case -ENXIO:
+				dev_err(&interface->dev,"Bulk write status report -ENOXIO\n");
+				break;
+			case -EINVAL:
+				dev_err(&interface->dev,"Bulk write status report -EINVAL\n");
+				break;
+			case -EXDEV:
+				dev_err(&interface->dev,"Bulk write status report -EXDEV\n");
+				break;
+			case -EFBIG:
+				dev_err(&interface->dev,"Bulk write status report -EFBIG\n");
+				break;
+			case -EPIPE:
+				dev_err(&interface->dev,"Bulk write status report -EPIPE\n");
+				break;
+			case -EMSGSIZE:
+				dev_err(&interface->dev,"Bulk write status report -EMSGSIZE\n");
+				break;
+			case -ENOSPC:
+				dev_err(&interface->dev,"Bulk write status report -ENOSPC\n");
+				break;
+			case -ESHUTDOWN:
+				dev_err(&interface->dev,"Bulk write status report -ESHUTDOWN\n");
+				break;
+			case -EPERM:
+				dev_err(&interface->dev,"Bulk write status report -EPERM\n");
+				break;
+			case -EHOSTUNREACH:
+				dev_err(&interface->dev,"Bulk write status report -EHOSTUNREACH\n");
+				break;
+			case -ENOEXEC:
+				dev_err(&interface->dev,"Bulk write status report -ENOEXEC\n");
+				break;
+			default:
+				dev_err(&interface->dev,"Failed to submit URB (Code %d)\n", retval);
+			}
 			goto anchor_error;
 		}
 
@@ -293,6 +358,8 @@ usb_error:
 static void memlcd_usb_disconnect(struct usb_interface *interface)
 {
 	struct memlcd_usb_dev	*dev;
+
+	dev_info(&interface->dev,"Disconnecting MemLcdFB usb device\n");
 
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
