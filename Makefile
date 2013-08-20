@@ -7,9 +7,10 @@ CROSS_COMPILE=armv5tel-softfloat-linux-gnueabi-
 KDIR=/cimc/build/ravion-kernel
 ROOT_FS_PATH=/cimc/exportfs/gentoo-armv5tel
 
-obj-m += memlcdfb.o
+obj-m += memlcdfb_spi.o memlcdfb_usb.o
 
-memlcdfb-objs := memlcd_spi.o
+memlcdfb_spi-objs := memlcd_spi.o
+memlcdfb_usb-objs := memlcd_usb.o
 
 MAKE_ARGS=ARCH=${ARCH} \
 	CROSS_COMPILE=${CROSS_COMPILE} \
