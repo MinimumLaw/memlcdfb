@@ -18,6 +18,7 @@ struct memlcd_usb_dev {
 	struct usb_interface	*iface;
 	struct usb_anchor	submitted;
 	__u8			ep;
+	struct mutex		io_mutex; /* enable/disable IO operations */
 	/* framebuffer specific part */
 	struct fb_info		*info;
 	unsigned char		*video_memory;

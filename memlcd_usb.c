@@ -6,6 +6,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
+/* ipc */
+#include <linux/mutex.h>
 /* usb specific */
 #include <linux/usb.h>
 #include <linux/errno.h>
@@ -16,59 +18,59 @@
 
 #include "memlcd_usb.h"
 
-void show_error_by_number(struct usb_interface *interface, int code)
+void show_error_by_number(struct usb_interface *interface, const char* msg, int code)
 {
 	switch(code){
 	case -ENOMEM:
-		dev_err(&interface->dev,"Interface error code -ENOMEM\n");
+		dev_err(&interface->dev,"%s -ENOMEM\n", msg);
 		break;
 	case -EBUSY:
-		dev_err(&interface->dev,"Interface error code -EBUSY\n");
+		dev_err(&interface->dev,"%s -EBUSY\n", msg);
 		break;
 	case -ENODEV:
-		dev_err(&interface->dev,"Interface error code -ENODEV\n");
+		dev_err(&interface->dev,"%s -ENODEV\n", msg);
 		break;
 	case -ENOENT:
-		dev_err(&interface->dev,"Interface error code -ENOENT\n");
+		dev_err(&interface->dev,"%s -ENOENT\n", msg);
 		break;
 	case -ENXIO:
-		dev_err(&interface->dev,"Interface error code -ENOXIO\n");
+		dev_err(&interface->dev,"%s -ENOXIO\n", msg);
 		break;
 	case -EINVAL:
-		dev_err(&interface->dev,"Interface error code -EINVAL\n");
+		dev_err(&interface->dev,"%s -EINVAL\n", msg);
 		break;
 	case -EXDEV:
-		dev_err(&interface->dev,"Interface error code -EXDEV\n");
+		dev_err(&interface->dev,"%s -EXDEV\n", msg);
 		break;
 	case -EFBIG:
-		dev_err(&interface->dev,"Interface error code -EFBIG\n");
+		dev_err(&interface->dev,"%s -EFBIG\n", msg);
 		break;
 	case -EPIPE:
-		dev_err(&interface->dev,"Interface error code -EPIPE\n");
+		dev_err(&interface->dev,"%s -EPIPE\n", msg);
 		break;
 	case -EMSGSIZE:
-		dev_err(&interface->dev,"Interface error code -EMSGSIZE\n");
+		dev_err(&interface->dev,"%s -EMSGSIZE\n", msg);
 		break;
 	case -ENOSPC:
-		dev_err(&interface->dev,"Interface error code -ENOSPC\n");
+		dev_err(&interface->dev,"%s -ENOSPC\n", msg);
 		break;
 	case -ESHUTDOWN:
-		dev_err(&interface->dev,"Interface error code -ESHUTDOWN\n");
+		dev_err(&interface->dev,"%s -ESHUTDOWN\n", msg);
 		break;
 	case -EPERM:
-		dev_err(&interface->dev,"Interface error code -EPERM\n");
+		dev_err(&interface->dev,"%s -EPERM\n", msg);
 		break;
 	case -EHOSTUNREACH:
-		dev_err(&interface->dev,"Interface error code -EHOSTUNREACH\n");
+		dev_err(&interface->dev,"%s -EHOSTUNREACH\n", msg);
 		break;
 	case -ENOEXEC:
-		dev_err(&interface->dev,"Interface error code -ENOEXEC\n");
+		dev_err(&interface->dev,"%s -ENOEXEC\n", msg);
 		break;
 	case -ECONNRESET:
-		dev_err(&interface->dev,"Interface error code -ECONNRESET\n");
+		dev_err(&interface->dev,"%s -ECONNRESET\n", msg);
 		break;
 	default:
-		dev_err(&interface->dev,"Interface unknown error code %d\n", code);
+		dev_err(&interface->dev,"%s unknown error code %d\n", msg, code);
 	};
 }
 
@@ -189,8 +191,7 @@ static void usb_write_cb(struct urb *urb)
 	struct usb_interface	*interface = dev->iface;
 
 	if(urb->status) {
-	    dev_err(&interface->dev,"Nonzero bulk write status.\n");
-	    show_error_by_number(interface, urb->status);
+	    show_error_by_number(interface, "Nonzero bulk write status", urb->status);
 	};
 
 	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
@@ -221,9 +222,12 @@ static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
 		buf[0] = i; // first is line number, next line data
 		memcpy(buf+1, dev->video_memory + (i * LS027B7DH01_LINE_LEN), LS027B7DH01_LINE_LEN);
 
+		mutex_lock(&dev->io_mutex);
+
 		// Check for disconnect
 		if(!dev->iface) {
 			dev_err(&interface->dev,"Transfer aborted - device disconnected!\n");
+			mutex_unlock(&dev->io_mutex);
 			goto buf_error;
 		}
 
@@ -235,9 +239,10 @@ static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
 
 		retval = usb_submit_urb(urb, GFP_KERNEL);
 
+		mutex_unlock(&dev->io_mutex);
+
 		if(retval) {
-			dev_dbg(&interface->dev,"Submit URB error\n");
-			show_error_by_number(interface, retval);
+			show_error_by_number(interface, "Submit URB error", retval);
 			goto anchor_error;
 		}
 
@@ -280,6 +285,9 @@ static int memlcd_usb_probe(struct usb_interface *interface,
 		dev_err(&interface->dev, "Out of memory\n");
 		goto usb_error;
 	}
+
+	/* ipc init */
+	mutex_init(&dev->io_mutex);
 
 	/* Fill private info with USB device data */
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
@@ -357,22 +365,23 @@ static void memlcd_usb_disconnect(struct usb_interface *interface)
 {
 	struct memlcd_usb_dev	*dev;
 
-	dev_info(&interface->dev,"Disconnecting MemLcdFB usb device\n");
-
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 
+
 	/* deallocate USB device */
 	if(dev) {
-		/* cleanup defio */
-		fb_deferred_io_cleanup(dev->info);
+		mutex_lock(&dev->io_mutex); // disallow latest io operations
 
 		/* remove framebuffer */
 		if(dev->info) {
 			dev_info(&interface->dev,"Free framebuffer data");
+			fb_deferred_io_cleanup(dev->info);
 			unregister_framebuffer(dev->info);
 			framebuffer_release(dev->info);
 		}
+
+		mutex_unlock(&dev->io_mutex); // no more io operations possible
 
 		/* remove video memory */
 		if(dev->video_memory) {
@@ -380,11 +389,16 @@ static void memlcd_usb_disconnect(struct usb_interface *interface)
 			kfree(dev->video_memory);
 		}
 
+		/* remove unneeded URB's */
 		usb_kill_anchored_urbs(&dev->submitted);
+
+		usb_put_dev(dev->udev);
 
 		/* remove private data */
 		kfree(dev);
-	}
+	} else
+		dev_err(&interface->dev,"NULL interface data on disconnect operation");
+
 
 	dev_info(&interface->dev,
 		"MemLcdFB usb device disconnected!\n");
