@@ -16,6 +16,62 @@
 
 #include "memlcd_usb.h"
 
+void show_error_by_number(struct usb_interface *interface, int code)
+{
+	switch(code){
+	case -ENOMEM:
+		dev_err(&interface->dev,"Interface error code -ENOMEM\n");
+		break;
+	case -EBUSY:
+		dev_err(&interface->dev,"Interface error code -EBUSY\n");
+		break;
+	case -ENODEV:
+		dev_err(&interface->dev,"Interface error code -ENODEV\n");
+		break;
+	case -ENOENT:
+		dev_err(&interface->dev,"Interface error code -ENOENT\n");
+		break;
+	case -ENXIO:
+		dev_err(&interface->dev,"Interface error code -ENOXIO\n");
+		break;
+	case -EINVAL:
+		dev_err(&interface->dev,"Interface error code -EINVAL\n");
+		break;
+	case -EXDEV:
+		dev_err(&interface->dev,"Interface error code -EXDEV\n");
+		break;
+	case -EFBIG:
+		dev_err(&interface->dev,"Interface error code -EFBIG\n");
+		break;
+	case -EPIPE:
+		dev_err(&interface->dev,"Interface error code -EPIPE\n");
+		break;
+	case -EMSGSIZE:
+		dev_err(&interface->dev,"Interface error code -EMSGSIZE\n");
+		break;
+	case -ENOSPC:
+		dev_err(&interface->dev,"Interface error code -ENOSPC\n");
+		break;
+	case -ESHUTDOWN:
+		dev_err(&interface->dev,"Interface error code -ESHUTDOWN\n");
+		break;
+	case -EPERM:
+		dev_err(&interface->dev,"Interface error code -EPERM\n");
+		break;
+	case -EHOSTUNREACH:
+		dev_err(&interface->dev,"Interface error code -EHOSTUNREACH\n");
+		break;
+	case -ENOEXEC:
+		dev_err(&interface->dev,"Interface error code -ENOEXEC\n");
+		break;
+	case -ECONNRESET:
+		dev_err(&interface->dev,"Interface error code -ECONNRESET\n");
+		break;
+	default:
+		dev_err(&interface->dev,"Interface unknown error code %d\n", code);
+	};
+}
+
 /*
  * USB device driver specific constants and tables
  */
@@ -133,19 +189,8 @@ static void usb_write_cb(struct urb *urb)
 	struct usb_interface	*interface = dev->iface;
 
 	if(urb->status) {
-		switch(urb->status) {
-		case -ENOENT:
-			dev_err(&interface->dev,"Bulk write status report -ENOENT\n");
-			break;
-		case -ECONNRESET:
-			dev_err(&interface->dev,"Bulk write status report -ECONNRESET\n");
-			break;
-		case -ESHUTDOWN:
-			dev_err(&interface->dev,"Bulk write status report -ESHUTDOWN\n");
-			break;
-		default:
-		    dev_err(&interface->dev,"Nonzero bulk write status (%d)\n", urb->status);
-		}
+	    dev_err(&interface->dev,"Nonzero bulk write status.\n");
+	    show_error_by_number(interface, urb->status);
 	};
 
 	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
@@ -191,55 +236,8 @@ static void ls027b7dh01_update(struct fb_info *info, struct list_head *pagelist)
 		retval = usb_submit_urb(urb, GFP_KERNEL);
 
 		if(retval) {
-			switch(retval) {
-			case -ENOMEM:
-				dev_err(&interface->dev,"Bulk write status report -ENOMEM\n");
-				break;
-			case -EBUSY:
-				dev_err(&interface->dev,"Bulk write status report -EBUSY\n");
-				break;
-			case -ENODEV:
-				dev_err(&interface->dev,"Bulk write status report -ENODEV\n");
-				break;
-			case -ENOENT:
-				dev_err(&interface->dev,"Bulk write status report -ENOENT\n");
-				break;
-			case -ENXIO:
-				dev_err(&interface->dev,"Bulk write status report -ENOXIO\n");
-				break;
-			case -EINVAL:
-				dev_err(&interface->dev,"Bulk write status report -EINVAL\n");
-				break;
-			case -EXDEV:
-				dev_err(&interface->dev,"Bulk write status report -EXDEV\n");
-				break;
-			case -EFBIG:
-				dev_err(&interface->dev,"Bulk write status report -EFBIG\n");
-				break;
-			case -EPIPE:
-				dev_err(&interface->dev,"Bulk write status report -EPIPE\n");
-				break;
-			case -EMSGSIZE:
-				dev_err(&interface->dev,"Bulk write status report -EMSGSIZE\n");
-				break;
-			case -ENOSPC:
-				dev_err(&interface->dev,"Bulk write status report -ENOSPC\n");
-				break;
-			case -ESHUTDOWN:
-				dev_err(&interface->dev,"Bulk write status report -ESHUTDOWN\n");
-				break;
-			case -EPERM:
-				dev_err(&interface->dev,"Bulk write status report -EPERM\n");
-				break;
-			case -EHOSTUNREACH:
-				dev_err(&interface->dev,"Bulk write status report -EHOSTUNREACH\n");
-				break;
-			case -ENOEXEC:
-				dev_err(&interface->dev,"Bulk write status report -ENOEXEC\n");
-				break;
-			default:
-				dev_err(&interface->dev,"Failed to submit URB (Code %d)\n", retval);
-			}
+			dev_dbg(&interface->dev,"Submit URB error\n");
+			show_error_by_number(interface, retval);
 			goto anchor_error;
 		}
 
@@ -403,3 +401,5 @@ static struct usb_driver memlcd_driver = {
 module_usb_driver(memlcd_driver);
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Alex A. Mihaylov AKA MinimumLaw <alex_a_mihaylov@yahoo.com>");
+MODULE_DESCRIPTION("Sharp MemoryLCD display connected with Atmel SAM4S XPlained Pro kit");

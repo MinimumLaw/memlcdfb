@@ -288,6 +288,6 @@ module_init(memlcd_spi_init);
 module_exit(memlcd_spi_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Alex A. Mihaylov <minimumlaw@rambler.ru>");
+MODULE_AUTHOR("Alex A. Mihaylov AKA MinimumLaw <alex_a_mihaylov@yahoo.com>");
 MODULE_ALIAS("spi:memlcdfb-spi");
 MODULE_ALIAS("spi:sharpspifb");
