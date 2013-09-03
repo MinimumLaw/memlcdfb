@@ -262,7 +262,7 @@ buf_error:
 }
 
 static struct fb_deferred_io ls027b7dh01_defio = {
-	.delay	= HZ/10,
+	.delay	= HZ/20,
 	.deferred_io = &ls027b7dh01_update,
 };
 
