@@ -574,12 +574,6 @@
     <Compile Include="src\usbVendorDev.h">
       <SubType>compile</SubType>
     </Compile>
-    <None Include="atmel_devices_cdc.cat">
-      <SubType>compile</SubType>
-    </None>
-    <None Include="atmel_devices_cdc.inf">
-      <SubType>compile</SubType>
-    </None>
     <None Include="src\ASF\common\services\sleepmgr\sleepmgr.h">
       <SubType>compile</SubType>
     </None>
